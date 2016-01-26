@@ -18,11 +18,13 @@ package marathon
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -183,7 +185,20 @@ func NewClient(config Config) (Marathon, error) {
 	client.cluster = cluster
 	client.httpClient = &http.Client{
 		Timeout: (time.Duration(config.RequestTimeout) * time.Second),
+		// a copy of http.DefaultTransport
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			Dial: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).Dial,
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: config.SkipTLSVerify,
+			},
+			TLSHandshakeTimeout: 10 * time.Second,
+		},
 	}
+
 	client.debugLog = log.New(config.LogOutput, "", 0)
 
 	return client, nil
