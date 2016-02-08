@@ -43,11 +43,12 @@ func (r *atomicSwitch) SwitchedOff() {
 	atomic.StoreInt64((*int64)(r), 0)
 }
 
-func validateID(id string) string {
+func validateID(id string) *string {
 	if !strings.HasPrefix(id, "/") {
-		return fmt.Sprintf("/%s", id)
+		correctedId := fmt.Sprintf("/%s", id)
+		return &correctedId
 	}
-	return id
+	return &id
 }
 
 func trimRootPath(id string) string {

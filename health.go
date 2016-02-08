@@ -19,13 +19,13 @@ package marathon
 // HealthCheck is the definition for an application health check
 type HealthCheck struct {
 	Command                *Command `json:"command,omitempty"`
-	Protocol               string   `json:"protocol,omitempty"`
-	Path                   string   `json:"path,omitempty"`
-	GracePeriodSeconds     int      `json:"gracePeriodSeconds,omitempty"`
-	IntervalSeconds        int      `json:"intervalSeconds,omitempty"`
-	PortIndex              int      `json:"portIndex,omitempty"`
+	Protocol               string   `json:"protocol,"`
+	Path                   string   `json:"path"`
+	GracePeriodSeconds     int      `json:"gracePeriodSeconds"`
+	IntervalSeconds        int      `json:"intervalSeconds"`
+	PortIndex              int      `json:"portIndex"`
 	MaxConsecutiveFailures int      `json:"maxConsecutiveFailures"`
-	TimeoutSeconds         int      `json:"timeoutSeconds,omitempty"`
+	TimeoutSeconds         int      `json:"timeoutSeconds"`
 }
 
 // NewDefaultHealthCheck creates a default application health check

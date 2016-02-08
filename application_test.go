@@ -32,52 +32,109 @@ func TestApplicationDependsOn(t *testing.T) {
 func TestApplicationMemory(t *testing.T) {
 	app := NewDockerApplication()
 	app.Memory(50.0)
-	assert.Equal(t, 50.0, app.Mem)
+	assert.Equal(t, 50.0, *app.Mem)
 }
 
 func TestApplicationCount(t *testing.T) {
 	app := NewDockerApplication()
-	assert.Equal(t, 0, app.Instances)
+	assert.Nil(t, app.Instances)
 	app.Count(1)
-	assert.Equal(t, 1, app.Instances)
+	assert.Equal(t, 1, *app.Instances)
 }
 
 func TestApplicationStorage(t *testing.T) {
 	app := NewDockerApplication()
-	assert.Equal(t, 0.0, app.Disk)
+	assert.Nil(t, app.Disk)
 	app.Storage(0.10)
-	assert.Equal(t, 0.10, app.Disk)
+	assert.Equal(t, 0.10, *app.Disk)
 }
 
 func TestApplicationName(t *testing.T) {
 	app := NewDockerApplication()
-	assert.Equal(t, "", app.ID)
+	assert.Nil(t, app.ID)
 	app.Name(fakeAppName)
-	assert.Equal(t, fakeAppName, app.ID)
+	assert.Equal(t, fakeAppName, *app.ID)
 }
 
 func TestApplicationCPU(t *testing.T) {
 	app := NewDockerApplication()
-	assert.Equal(t, 0.0, app.CPUs)
+	assert.Nil(t, app.CPUs)
 	app.CPU(0.1)
-	assert.Equal(t, 0.1, app.CPUs)
+	assert.Equal(t, 0.1, *app.CPUs)
 }
 
 func TestApplicationArgs(t *testing.T) {
 	app := NewDockerApplication()
-	assert.Equal(t, 0, len(app.Args))
-	app.Arg("-p").Arg("option", "-v")
-	assert.Equal(t, 3, len(app.Args))
-	assert.Equal(t, "-p", app.Args[0])
-	assert.Equal(t, "option", app.Args[1])
-	assert.Equal(t, "-v", app.Args[2])
+	assert.Nil(t, app.Args)
+	app.AddArgs("-p").AddArgs("option", "-v")
+	assert.Equal(t, 3, len(*app.Args))
+	assert.Equal(t, "-p", (*app.Args)[0])
+	assert.Equal(t, "option", (*app.Args)[1])
+	assert.Equal(t, "-v", (*app.Args)[2])
+
+	app.EmptyArgs()
+	assert.NotNil(t, app.Args)
+	assert.Equal(t, 0, len(*app.Args))
+}
+
+func ExampleApplication_AddConstraint() {
+	app := NewDockerApplication()
+
+	// add two constraints
+	app.AddConstraint("hostname", "UNIQUE").
+		AddConstraint("rack_id", "CLUSTER", "rack-1")
+}
+
+func TestApplicationConstraints(t *testing.T) {
+	app := NewDockerApplication()
+	assert.Nil(t, app.Constraints)
+	app.AddConstraint("hostname", "UNIQUE").
+		AddConstraint("rack_id", "CLUSTER", "rack-1")
+
+	assert.Equal(t, 2, len(*app.Constraints))
+	assert.Equal(t, []string{"hostname", "UNIQUE"}, (*app.Constraints)[0])
+	assert.Equal(t, []string{"rack_id", "CLUSTER", "rack-1"}, (*app.Constraints)[1])
+
+	app.EmptyConstraints()
+	assert.NotNil(t, app.Constraints)
+	assert.Equal(t, 0, len(*app.Constraints))
 }
 
 func TestApplicationEnvs(t *testing.T) {
 	app := NewDockerApplication()
-	assert.Equal(t, 0, len(app.Env))
+	assert.Nil(t, app.Env)
 	app.AddEnv("hello", "world")
-	assert.Equal(t, 1, len(app.Env))
+	assert.Equal(t, 1, len(*app.Env))
+
+	app.EmptyEnv()
+	assert.NotNil(t, app.Env)
+	assert.Equal(t, 0, len(*app.Env))
+}
+
+func TestApplicationSetExecutor(t *testing.T) {
+	app := NewDockerApplication()
+	assert.Nil(t, app.Executor)
+
+	app.SetExecutor("executor")
+	assert.Equal(t, "executor", *app.Executor)
+
+	app.SetExecutor("")
+	assert.Equal(t, "", *app.Executor)
+}
+
+func TestApplicationHealthChecks(t *testing.T) {
+	app := NewDockerApplication()
+	assert.Nil(t, app.HealthChecks)
+	app.AddHealthCheck(HealthCheck{Path: "/check1"}).
+		AddHealthCheck(HealthCheck{Path: "/check2"})
+
+	assert.Equal(t, 2, len(*app.HealthChecks))
+	assert.Equal(t, HealthCheck{Path: "/check1"}, (*app.HealthChecks)[0])
+	assert.Equal(t, HealthCheck{Path: "/check2"}, (*app.HealthChecks)[1])
+
+	app.EmptyHealthChecks()
+	assert.NotNil(t, app.HealthChecks)
+	assert.Equal(t, 0, len(*app.HealthChecks))
 }
 
 func TestApplicationLabels(t *testing.T) {
@@ -106,10 +163,7 @@ func TestApplicationCheckTCP(t *testing.T) {
 	_, err = app.CheckTCP(80, 10)
 	assert.NoError(t, err)
 	assert.True(t, app.HasHealthChecks())
-	check := app.HealthChecks[0]
-	if check == nil {
-		t.FailNow()
-	}
+	check := (*app.HealthChecks)[0]
 	assert.Equal(t, "TCP", check.Protocol)
 	assert.Equal(t, 10, check.IntervalSeconds)
 	assert.Equal(t, 0, check.PortIndex)
@@ -125,10 +179,7 @@ func TestApplicationCheckHTTP(t *testing.T) {
 	_, err = app.CheckHTTP("/health", 80, 10)
 	assert.NoError(t, err)
 	assert.True(t, app.HasHealthChecks())
-	check := app.HealthChecks[0]
-	if check == nil {
-		t.FailNow()
-	}
+	check := (*app.HealthChecks)[0]
 	assert.Equal(t, "HTTP", check.Protocol)
 	assert.Equal(t, 10, check.IntervalSeconds)
 	assert.Equal(t, "/health", check.Path)
@@ -140,11 +191,11 @@ func TestCreateApplication(t *testing.T) {
 	defer endpoint.Close()
 
 	application := NewDockerApplication()
-	application.ID = "/fake_app"
+	application.Name("/fake_app")
 	app, err := endpoint.Client.CreateApplication(application)
 	assert.NoError(t, err)
 	assert.NotNil(t, app)
-	assert.Equal(t, application.ID, "/fake_app")
+	assert.Equal(t, *application.ID, "/fake_app")
 	assert.Equal(t, app.Deployments[0]["id"], "f44fd4fc-4330-4600-a68b-99c7bd33014a")
 }
 
@@ -154,7 +205,7 @@ func TestUpdateApplication(t *testing.T) {
 		defer endpoint.Close()
 
 		application := NewDockerApplication()
-		application.ID = "/fake_app"
+		application.Name("/fake_app")
 		id, err := endpoint.Client.UpdateApplication(application, force)
 		assert.NoError(t, err)
 		assert.Equal(t, id.DeploymentID, "83b215a6-4e26-4e44-9333-5c385eda6438")
@@ -211,6 +262,20 @@ func TestRestartApplication(t *testing.T) {
 	id, err = endpoint.Client.RestartApplication("/not/there", false)
 	assert.Error(t, err)
 	assert.Nil(t, id)
+}
+
+func TestApplicationUris(t *testing.T) {
+	app := NewDockerApplication()
+	assert.Nil(t, app.Uris)
+	app.AddUris("file://uri1.tar.gz").AddUris("file://uri2.tar.gz", "file://uri3.tar.gz")
+	assert.Equal(t, 3, len(*app.Uris))
+	assert.Equal(t, "file://uri1.tar.gz", (*app.Uris)[0])
+	assert.Equal(t, "file://uri2.tar.gz", (*app.Uris)[1])
+	assert.Equal(t, "file://uri3.tar.gz", (*app.Uris)[2])
+
+	app.EmptyUris()
+	assert.NotNil(t, app.Uris)
+	assert.Equal(t, 0, len(*app.Uris))
 }
 
 func TestSetApplicationVersion(t *testing.T) {
@@ -272,10 +337,10 @@ func TestApplication(t *testing.T) {
 	application, err := endpoint.Client.Application(fakeAppName)
 	assert.NoError(t, err)
 	assert.NotNil(t, application)
-	assert.Equal(t, application.ID, fakeAppName)
+	assert.Equal(t, *application.ID, fakeAppName)
 	assert.NotNil(t, application.HealthChecks)
 	assert.NotNil(t, application.Tasks)
-	assert.Equal(t, len(application.HealthChecks), 1)
+	assert.Equal(t, len(*application.HealthChecks), 1)
 	assert.Equal(t, len(application.Tasks), 2)
 
 	_, err = endpoint.Client.Application("no_such_app")

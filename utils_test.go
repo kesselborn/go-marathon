@@ -76,9 +76,9 @@ func TestUtilsContains(t *testing.T) {
 
 func TestUtilsValidateID(t *testing.T) {
 	path := "test/path"
-	assert.Equal(t, validateID(path), "/test/path")
+	assert.Equal(t, *validateID(path), "/test/path")
 	path = "/test/path"
-	assert.Equal(t, validateID(path), "/test/path")
+	assert.Equal(t, *validateID(path), "/test/path")
 }
 
 func TestUtilsGetInterfaceAddress(t *testing.T) {

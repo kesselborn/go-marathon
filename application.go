@@ -17,6 +17,7 @@ limitations under the License.
 package marathon
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -35,34 +36,34 @@ type Applications struct {
 
 // Application is the definition for an application in marathon
 type Application struct {
-	ID                    string              `json:"id,omitempty"`
-	Cmd                   string              `json:"cmd,omitempty"`
-	Args                  []string            `json:"args"`
-	Constraints           [][]string          `json:"constraints"`
+	ID                    *string             `json:"id,omitempty"`
+	Cmd                   *string             `json:"cmd,omitempty"`
+	Args                  *[]string           `json:"args,omitempty"`
+	Constraints           *[][]string         `json:"constraints,omitempty"`
 	Container             *Container          `json:"container,omitempty"`
-	CPUs                  float64             `json:"cpus,omitempty"`
-	Disk                  float64             `json:"disk,omitempty"`
-	Env                   map[string]string   `json:"env"`
-	Executor              string              `json:"executor,omitempty"`
-	HealthChecks          []*HealthCheck      `json:"healthChecks"`
-	Instances             int                 `json:"instances,omitempty"`
-	Mem                   float64             `json:"mem,omitempty"`
+	CPUs                  *float64            `json:"cpus,omitempty"`
+	Disk                  *float64            `json:"disk,omitempty"`
+	Env                   *map[string]string  `json:"env,omitempty"`
+	Executor              *string             `json:"executor,omitempty"`
+	HealthChecks          *[]HealthCheck      `json:"healthChecks,omitempty"`
+	Instances             *int                `json:"instances,omitempty"`
+	Mem                   *float64            `json:"mem,omitempty"`
 	Tasks                 []*Task             `json:"tasks,omitempty"`
 	Ports                 []int               `json:"ports"`
-	RequirePorts          bool                `json:"requirePorts,omitempty"`
-	BackoffSeconds        float64             `json:"backoffSeconds,omitempty"`
-	BackoffFactor         float64             `json:"backoffFactor,omitempty"`
-	MaxLaunchDelaySeconds float64             `json:"maxLaunchDelaySeconds,omitempty"`
+	RequirePorts          *bool               `json:"requirePorts,omitempty"`
+	BackoffSeconds        *float64            `json:"backoffSeconds,omitempty"`
+	BackoffFactor         *float64            `json:"backoffFactor,omitempty"`
+	MaxLaunchDelaySeconds *float64            `json:"maxLaunchDelaySeconds,omitempty"`
 	Deployments           []map[string]string `json:"deployments,omitempty"`
 	Dependencies          []string            `json:"dependencies"`
-	TasksRunning          int                 `json:"tasksRunning,omitempty"`
-	TasksStaged           int                 `json:"tasksStaged,omitempty"`
-	TasksHealthy          int                 `json:"tasksHealthy,omitempty"`
-	TasksUnhealthy        int                 `json:"tasksUnhealthy,omitempty"`
-	User                  string              `json:"user,omitempty"`
+	TasksRunning          *int                `json:"tasksRunning,omitempty"`
+	TasksStaged           *int                `json:"tasksStaged,omitempty"`
+	TasksHealthy          *int                `json:"tasksHealthy,omitempty"`
+	TasksUnhealthy        *int                `json:"tasksUnhealthy,omitempty"`
+	User                  *string             `json:"user,omitempty"`
 	UpgradeStrategy       *UpgradeStrategy    `json:"upgradeStrategy,omitempty"`
-	Uris                  []string            `json:"uris"`
-	Version               string              `json:"version,omitempty"`
+	Uris                  *[]string           `json:"uris"`
+	Version               *string             `json:"version,omitempty"`
 	VersionInfo           *VersionInfo        `json:"versionInfo,omitempty"`
 	Labels                map[string]string   `json:"labels,omitempty"`
 	AcceptedResourceRoles []string            `json:"acceptedResourceRoles,omitempty"`
@@ -101,16 +102,22 @@ func NewDockerApplication() *Application {
 	return application
 }
 
-// Name set the name of the application i.e. the identifier for this application
+// Name sets the name / ID of the application i.e. the identifier for this application
 func (r *Application) Name(id string) *Application {
 	r.ID = validateID(id)
+	return r
+}
+
+// Command sets the cmd of the application
+func (r *Application) Command(cmd string) *Application {
+	r.Cmd = &cmd
 	return r
 }
 
 // CPU set the amount of CPU shares per instance which is assigned to the application
 //		cpu:	the CPU shared (check Docker docs) per instance
 func (r *Application) CPU(cpu float64) *Application {
-	r.CPUs = cpu
+	r.CPUs = &cpu
 	return r
 }
 
@@ -118,20 +125,20 @@ func (r *Application) CPU(cpu float64) *Application {
 // application I don't believe is relevant
 //		disk:	the disk space in MB
 func (r *Application) Storage(disk float64) *Application {
-	r.Disk = disk
+	r.Disk = &disk
 	return r
 }
 
 // AllTaskRunning checks to see if all the application tasks are running, i.e. the instances is equal
 // to the number of running tasks
 func (r *Application) AllTaskRunning() bool {
-	if r.Instances == 0 {
+	if r.Instances == nil || *r.Instances == 0 {
 		return true
 	}
 	if r.Tasks == nil {
 		return false
 	}
-	if r.TasksRunning == r.Instances {
+	if *r.TasksRunning == *r.Instances {
 		return true
 	}
 	return false
@@ -153,7 +160,7 @@ func (r *Application) DependsOn(names ...string) *Application {
 // Memory sets he amount of memory the application can consume per instance
 //		memory:	the amount of MB to assign
 func (r *Application) Memory(memory float64) *Application {
-	r.Mem = memory
+	r.Mem = &memory
 
 	return r
 }
@@ -161,18 +168,55 @@ func (r *Application) Memory(memory float64) *Application {
 // Count sets the number of instances of the application to run
 //		count:	the number of instances to run
 func (r *Application) Count(count int) *Application {
-	r.Instances = count
+	r.Instances = &count
 
 	return r
 }
 
-// Arg adds one or more arguments to the applications
+// AddArgs adds one or more arguments to the applications
 //		arguments:	the argument(s) you are adding
-func (r *Application) Arg(arguments ...string) *Application {
+func (r *Application) AddArgs(arguments ...string) *Application {
 	if r.Args == nil {
-		r.Args = make([]string, 0)
+		r.EmptyArgs()
 	}
-	r.Args = append(r.Args, arguments...)
+
+	args := *r.Args
+	args = append(args, arguments...)
+	r.Args = &args
+
+	return r
+}
+
+// EmptyArgs explicitly empties arguments -- use this if you need to empty
+// arguments of an application that already has arguments set (setting args to nil will
+// keep the current value)
+func (r *Application) EmptyArgs() *Application {
+	empty := []string{}
+	r.Args = &empty
+
+	return r
+}
+
+// AddConstraints adds a new constraint
+//		arguments:	the constraint definition, one argument per array element
+func (r *Application) AddConstraint(arguments ...string) *Application {
+	if r.Constraints == nil {
+		r.EmptyConstraints()
+	}
+
+	constraints := *r.Constraints
+	constraints = append(constraints, arguments)
+	r.Constraints = &constraints
+
+	return r
+}
+
+// EmptyConstraints explicitly empties constraints -- use this if you need to empty
+// constraints of an application that already has constraints set (setting constraints to nil will
+// keep the current value)
+func (r *Application) EmptyConstraints() *Application {
+	empty := [][]string{}
+	r.Constraints = &empty
 
 	return r
 }
@@ -182,9 +226,50 @@ func (r *Application) Arg(arguments ...string) *Application {
 //		value:	go figure, the value associated to the above
 func (r *Application) AddEnv(name, value string) *Application {
 	if r.Env == nil {
-		r.Env = make(map[string]string, 0)
+		r.EmptyEnv()
 	}
-	r.Env[name] = value
+	(*r.Env)[name] = value
+
+	return r
+}
+
+// EmptyEnv explicitly empties the env -- use this if you need to empty
+// the environment of an application that already has an environment set (setting env to nil will
+// keep the current value)
+func (r *Application) EmptyEnv() *Application {
+	env := make(map[string]string, 0)
+	r.Env = &env
+
+	return r
+}
+
+// SetExecutor sets the executor
+func (r *Application) SetExecutor(executor string) *Application {
+	r.Executor = &executor
+
+	return r
+}
+
+// AddHealthCheck adds a health check
+// 	healtchecks the health check that should be added
+func (r *Application) AddHealthCheck(healthCheck HealthCheck) *Application {
+	if r.HealthChecks == nil {
+		r.EmptyHealthChecks()
+	}
+
+	healthChecks := *r.HealthChecks
+	healthChecks = append(healthChecks, healthCheck)
+	r.HealthChecks = &healthChecks
+
+	return r
+}
+
+// EmptyHealthChecks explicitly empties healthChecks -- use this if you need to empty
+// healthChecks of an application that already has healthChecks set (setting healthChecks to nil will
+// keep the current value)
+func (r *Application) EmptyHealthChecks() *Application {
+	healthChecks := []HealthCheck{}
+	r.HealthChecks = &healthChecks
 
 	return r
 }
@@ -203,7 +288,7 @@ func (r *Application) AddLabel(name, value string) *Application {
 
 // HasHealthChecks is a helper method, used to check if an application has healtchecks
 func (r *Application) HasHealthChecks() bool {
-	return r.HealthChecks != nil && len(r.HealthChecks) > 0
+	return r.HealthChecks != nil && len(*r.HealthChecks) > 0
 }
 
 // DeploymentIDs retrieves the application deployments IDs
@@ -216,7 +301,7 @@ func (r *Application) DeploymentIDs() []*DeploymentID {
 	for _, deploy := range r.Deployments {
 		if id, found := deploy["id"]; found {
 			deployment := &DeploymentID{
-				Version:      r.Version,
+				Version:      *r.Version,
 				DeploymentID: id,
 			}
 			deployments = append(deployments, deployment)
@@ -230,9 +315,6 @@ func (r *Application) DeploymentIDs() []*DeploymentID {
 //		port: 		the port the check should be checking
 // 		interval:	the interval in seconds the check should be performed
 func (r *Application) CheckHTTP(uri string, port, interval int) (*Application, error) {
-	if r.HealthChecks == nil {
-		r.HealthChecks = make([]*HealthCheck, 0)
-	}
 	if r.Container == nil || r.Container.Docker == nil {
 		return nil, ErrNoApplicationContainer
 	}
@@ -246,7 +328,7 @@ func (r *Application) CheckHTTP(uri string, port, interval int) (*Application, e
 	health.IntervalSeconds = interval
 	health.PortIndex = portIndex
 	// step: add to the checks
-	r.HealthChecks = append(r.HealthChecks, health)
+	r.AddHealthCheck(*health)
 
 	return r, nil
 }
@@ -256,9 +338,6 @@ func (r *Application) CheckHTTP(uri string, port, interval int) (*Application, e
 //		port: 		the port the check should, err, check
 // 		interval:	the interval in seconds the check should be performed
 func (r *Application) CheckTCP(port, interval int) (*Application, error) {
-	if r.HealthChecks == nil {
-		r.HealthChecks = make([]*HealthCheck, 0)
-	}
 	if r.Container == nil || r.Container.Docker == nil {
 		return nil, ErrNoApplicationContainer
 	}
@@ -272,9 +351,43 @@ func (r *Application) CheckTCP(port, interval int) (*Application, error) {
 	health.IntervalSeconds = interval
 	health.PortIndex = portIndex
 	// step: add to the checks
-	r.HealthChecks = append(r.HealthChecks, health)
+	r.AddHealthCheck(*health)
 
 	return r, nil
+}
+
+// AddUris adds one or more uris to the applications
+//		arguments:	the uri(s) you are adding
+func (r *Application) AddUris(newUris ...string) *Application {
+	if r.Uris == nil {
+		r.EmptyUris()
+	}
+
+	uris := *r.Uris
+	uris = append(uris, newUris...)
+	r.Uris = &uris
+
+	return r
+}
+
+// EmptyUris explicitly empties uris -- use this if you need to empty
+// uris of an application that already has uris set (setting uris to nil will
+// keep the current value)
+func (r *Application) EmptyUris() *Application {
+	empty := []string{}
+	r.Uris = &empty
+
+	return r
+}
+
+// String returns the json representation of this application
+func (r *Application) String() string {
+	s, err := json.MarshalIndent(r, "", "  ")
+	if err != nil {
+		return fmt.Sprintf(`{"error": "error decoding type into json: %s"}`, err)
+	}
+
+	return string(s)
 }
 
 // Applications retrieves an array of all the applications which are running in marathon
@@ -296,7 +409,7 @@ func (r *marathonClient) ListApplications(v url.Values) ([]string, error) {
 	}
 	var list []string
 	for _, application := range applications.Apps {
-		list = append(list, application.ID)
+		list = append(list, *application.ID)
 	}
 
 	return list, nil
@@ -369,7 +482,7 @@ func (r *marathonClient) ApplicationOK(name string) (bool, error) {
 	}
 
 	// step: if the application has not health checks, just return true
-	if application.HealthChecks == nil || len(application.HealthChecks) <= 0 {
+	if application.HealthChecks == nil || len(*application.HealthChecks) <= 0 {
 		return true, nil
 	}
 
@@ -472,14 +585,10 @@ func (r *marathonClient) RestartApplication(name string, force bool) (*Deploymen
 // 		name: 		the id used to identify the application
 // 		instances:	the number of instances you wish to change to
 //    force: used to force the scale operation in case of blocked deployment
-func (r *marathonClient) ScaleApplicationInstances(name string, instances int, force bool) (*DeploymentID, error) {
-	changes := struct {
-		ID        string `json:"id"`
-		Instances int    `json:"instances"`
-	}{
-		ID:        validateID(name),
-		Instances: instances,
-	}
+func (r *marathonclient) scaleapplicationinstances(name string, instances int, force bool) (*deploymentid, error) {
+	changes := new(Application)
+	changes.ID = validateID(name)
+	changes.Instances = &instances
 	uri := buildURIWithForceParam(name, force)
 	deployID := new(DeploymentID)
 	if err := r.apiPut(uri, &changes, deployID); err != nil {

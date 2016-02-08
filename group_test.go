@@ -31,7 +31,7 @@ func TestGroups(t *testing.T) {
 	assert.NotNil(t, groups)
 	assert.Equal(t, len(groups.Groups), 1)
 	group := groups.Groups[0]
-	assert.Equal(t, group.ID, fakeGroupName)
+	assert.Equal(t, *group.ID, fakeGroupName)
 }
 
 func TestGroup(t *testing.T) {
@@ -42,24 +42,24 @@ func TestGroup(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, group)
 	assert.Equal(t, len(group.Apps), 1)
-	assert.Equal(t, group.ID, fakeGroupName)
+	assert.Equal(t, *group.ID, fakeGroupName)
 
 	group, err = endpoint.Client.Group(fakeGroupName1)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, group)
-	assert.Equal(t, group.ID, fakeGroupName1)
+	assert.Equal(t, *group.ID, fakeGroupName1)
 	assert.NotNil(t, group.Groups)
 	assert.Equal(t, len(group.Groups), 1)
 
 	frontend := group.Groups[0]
-	assert.Equal(t, frontend.ID, "frontend")
+	assert.Equal(t, *frontend.ID, "frontend")
 	assert.Equal(t, len(frontend.Apps), 3)
 	for _, app := range frontend.Apps {
 		assert.NotNil(t, app.Container)
 		assert.NotNil(t, app.Container.Docker)
-		assert.Equal(t, app.Container.Docker.Network, "BRIDGE")
-		if len(app.Container.Docker.PortMappings) <= 0 {
+		assert.Equal(t, *app.Container.Docker.Network, "BRIDGE")
+		if len(*app.Container.Docker.PortMappings) <= 0 {
 			t.Fail()
 		}
 	}

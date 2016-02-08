@@ -23,7 +23,7 @@ import (
 
 // Group is a marathon application group
 type Group struct {
-	ID           string         `json:"id"`
+	ID           *string        `json:"id"`
 	Apps         []*Application `json:"apps"`
 	Dependencies []string       `json:"dependencies"`
 	Groups       []*Group       `json:"groups"`
@@ -31,7 +31,7 @@ type Group struct {
 
 // Groups is a collection of marathon application groups
 type Groups struct {
-	ID           string         `json:"id"`
+	ID           *string        `json:"id"`
 	Apps         []*Application `json:"apps"`
 	Dependencies []string       `json:"dependencies"`
 	Groups       []*Group       `json:"groups"`
@@ -41,7 +41,7 @@ type Groups struct {
 //		name:			the name of the group
 func NewApplicationGroup(name string) *Group {
 	return &Group{
-		ID:           name,
+		ID:           &name,
 		Apps:         make([]*Application, 0),
 		Dependencies: make([]string, 0),
 		Groups:       make([]*Group, 0),
@@ -126,7 +126,7 @@ func (r *marathonClient) WaitOnGroup(name string, timeout time.Duration) error {
 					// appears the instance count is not set straight away!! .. it defaults to zero and changes probably at the
 					// dependencies gets deployed. Which is probably how it internally handles dependencies ..
 					// step: grab the application
-					application, err := r.Application(appID.ID)
+					application, err := r.Application(*appID.ID)
 					if err != nil {
 						allRunning = false
 						break
@@ -134,7 +134,7 @@ func (r *marathonClient) WaitOnGroup(name string, timeout time.Duration) error {
 
 					if application.Tasks == nil {
 						allRunning = false
-					} else if len(application.Tasks) != appID.Instances {
+					} else if len(application.Tasks) != *appID.Instances {
 						allRunning = false
 					} else if application.TasksRunning != appID.Instances {
 						allRunning = false
