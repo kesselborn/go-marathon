@@ -60,6 +60,6 @@ func NewDefaultConfig() Config {
 		EventsPort:      10001,
 		EventsInterface: "eth0",
 		LogOutput:       ioutil.Discard,
-		PollingWaitTime: 500 * time.Millisecond,
+		PollingWaitTime: 500 * time.Nanosecond,
 	}
 }

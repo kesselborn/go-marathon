@@ -485,7 +485,7 @@ func TestApplicationConfiguration(t *testing.T) {
 }
 
 func TestWaitOnApplication(t *testing.T) {
-	waitTime := 100 * time.Millisecond
+	waitTime := 100 * time.Nanosecond
 
 	tests := []struct {
 		desc    string
